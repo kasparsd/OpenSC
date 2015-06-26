@@ -1,4 +1,3 @@
-OpenSC documentation wiki is available online at
-	http://www.opensc-project.org/opensc/
+# OpenSC for Latvian eID
 
-Please take a look at the documentation before trying to use OpenSC.
+This is a copy of OpenSC used in [Latvian eID Middleware](https://github.com/eID-LV/Middleware) with some Git history on top.
