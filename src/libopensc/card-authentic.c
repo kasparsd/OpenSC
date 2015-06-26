@@ -1293,6 +1293,7 @@ authentic_chv_verify(struct sc_card *card, struct sc_pin_cmd_data *pin_cmd,
 	struct sc_apdu apdu;
 	struct sc_pin_cmd_pin *pin1 = &pin_cmd->pin1;
 	int rv;
+    unsigned char pin_buff[SC_MAX_APDU_BUFFER_SIZE] = {0};
 
 	LOG_FUNC_CALLED(ctx);
 	sc_log(ctx, "CHV PIN reference %i, pin1(%p,len:%i)", pin_cmd->pin_reference, pin1->data, pin1->len);
@@ -1301,7 +1302,6 @@ authentic_chv_verify(struct sc_card *card, struct sc_pin_cmd_data *pin_cmd,
 		sc_format_apdu(card, &apdu, SC_APDU_CASE_1, 0x20, 0, pin_cmd->pin_reference);
 	}
 	else if (pin1->data && pin1->len)   {
-		unsigned char pin_buff[SC_MAX_APDU_BUFFER_SIZE];
 		size_t pin_len;
 
 		memcpy(pin_buff, pin1->data, pin1->len);

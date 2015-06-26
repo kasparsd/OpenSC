@@ -628,10 +628,7 @@ CK_RV C_Sign(CK_SESSION_HANDLE hSession,	/* the session's handle */
 		goto out;
 	}
 
-	rv = sc_pkcs11_sign_update(session, pData, ulDataLen);
-	if (rv == CKR_OK)
-		rv = sc_pkcs11_sign_final(session, pSignature, pulSignatureLen);
-
+	rv = sc_pkcs11_sign(session, pData, ulDataLen, pSignature, pulSignatureLen);
 out:	sc_debug(context, SC_LOG_DEBUG_NORMAL, "C_Sign() = %s", lookup_enum ( RV_T, rv ));
 	sc_pkcs11_unlock();
 	return rv;

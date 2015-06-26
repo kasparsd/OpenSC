@@ -480,7 +480,7 @@ static int rtecp_change_reference_data(sc_card_t *card, unsigned int type,
 }
 
 static int rtecp_reset_retry_counter(sc_card_t *card, unsigned int type,
-		int ref_qualifier, const u8 *puk, size_t puklen,
+		int so_ref_qualifier, int ref_qualifier, const u8 *puk, size_t puklen,
 		const u8 *newref, size_t newlen)
 {
 	sc_apdu_t apdu;

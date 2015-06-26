@@ -246,6 +246,9 @@ struct sc_pkcs11_mechanism_type {
 					CK_BYTE_PTR, CK_ULONG);
 	CK_RV		  (*sign_final)(sc_pkcs11_operation_t *,
 					CK_BYTE_PTR, CK_ULONG_PTR);
+	CK_RV		  (*sign)(sc_pkcs11_operation_t *,
+                    CK_BYTE_PTR, CK_ULONG,
+					CK_BYTE_PTR, CK_ULONG_PTR);
 	CK_RV		  (*sign_size)(sc_pkcs11_operation_t *,
 					CK_ULONG_PTR);
 #ifdef ENABLE_OPENSSL
@@ -373,6 +376,7 @@ CK_RV sc_pkcs11_sign_init(struct sc_pkcs11_session *, CK_MECHANISM_PTR,
 				struct sc_pkcs11_object *, CK_MECHANISM_TYPE);
 CK_RV sc_pkcs11_sign_update(struct sc_pkcs11_session *, CK_BYTE_PTR, CK_ULONG);
 CK_RV sc_pkcs11_sign_final(struct sc_pkcs11_session *, CK_BYTE_PTR, CK_ULONG_PTR);
+CK_RV sc_pkcs11_sign(struct sc_pkcs11_session *, CK_BYTE_PTR, CK_ULONG, CK_BYTE_PTR, CK_ULONG_PTR);
 CK_RV sc_pkcs11_sign_size(struct sc_pkcs11_session *, CK_ULONG_PTR);
 #ifdef ENABLE_OPENSSL
 CK_RV sc_pkcs11_verif_init(struct sc_pkcs11_session *, CK_MECHANISM_PTR,

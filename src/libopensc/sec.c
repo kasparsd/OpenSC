@@ -123,7 +123,7 @@ int sc_change_reference_data(sc_card_t *card, unsigned int type,
 	return sc_pin_cmd(card, &data, tries_left);
 }
 
-int sc_reset_retry_counter(sc_card_t *card, unsigned int type, int ref,
+int sc_reset_retry_counter(sc_card_t *card, unsigned int type, int so_ref, int ref,
 			   const u8 *puk, size_t puklen, const u8 *newref,
 			   size_t newlen)
 {
@@ -133,6 +133,7 @@ int sc_reset_retry_counter(sc_card_t *card, unsigned int type, int ref,
 	data.cmd = SC_PIN_CMD_UNBLOCK;
 	data.pin_type = type;
 	data.pin_reference = ref;
+    data.so_pin_reference = so_ref;
 	data.pin1.data = puk;
 	data.pin1.len = puklen;
 	data.pin2.data = newref;
@@ -187,6 +188,7 @@ int sc_pin_cmd(sc_card_t *card, struct sc_pin_cmd_data *data,
 			if (card->ops->reset_retry_counter != NULL)
 				r = card->ops->reset_retry_counter(card,
 					data->pin_type,
+                    data->so_pin_reference,
 					data->pin_reference,
 					data->pin1.data,
 					(size_t) data->pin1.len,

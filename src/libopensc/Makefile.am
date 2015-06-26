@@ -4,7 +4,7 @@ MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
 
 EXTRA_DIST = Makefile.mak 
 
-lib_LTLIBRARIES = libopensc.la
+lib_LTLIBRARIES = libotlvopensc.la
 noinst_HEADERS = cards.h ctbcs.h internal.h esteid.h muscle.h muscle-filesystem.h \
 	internal-winscard.h p15card-helper.h \
 	opensc.h pkcs15.h \
@@ -12,13 +12,13 @@ noinst_HEADERS = cards.h ctbcs.h internal.h esteid.h muscle.h muscle-filesystem.
 	errors.h types.h compression.h itacns.h iso7816.h \
 	authentic.h iasecc.h iasecc-sdo.h
 
-AM_CPPFLAGS = -DOPENSC_CONF_PATH=\"$(sysconfdir)/opensc.conf\"
+AM_CPPFLAGS = -DOPENSC_CONF_PATH=\"$(sysconfdir)/latvia-eid.conf\"
 AM_CFLAGS = $(OPTIONAL_OPENSSL_CFLAGS) $(OPTIONAL_OPENCT_CFLAGS) \
 	$(OPTIONAL_PCSC_CFLAGS) $(OPTIONAL_ZLIB_CFLAGS) \
 	$(LTLIB_CFLAGS)
 INCLUDES = -I$(top_srcdir)/src
 
-libopensc_la_SOURCES = \
+libotlvopensc_la_SOURCES = \
 	sc.c ctx.c log.c errors.c \
 	asn1.c base64.c sec.c card.c iso7816.c dir.c ef-atr.c padding.c apdu.c \
 	\
@@ -48,17 +48,17 @@ libopensc_la_SOURCES = \
 	compression.c p15card-helper.c \
 	libopensc.exports
 if WIN32
-libopensc_la_SOURCES += $(top_builddir)/win32/versioninfo.rc
+libotlvopensc_la_SOURCES += $(top_builddir)/win32/versioninfo.rc
 endif
-libopensc_la_LIBADD = $(OPTIONAL_OPENSSL_LIBS) $(OPTIONAL_OPENCT_LIBS) \
+libotlvopensc_la_LIBADD = $(OPTIONAL_OPENSSL_LIBS) $(OPTIONAL_OPENCT_LIBS) \
 	$(OPTIONAL_ZLIB_LIBS) $(LTLIB_LIBS) \
 	$(top_builddir)/src/pkcs15init/libpkcs15init.la \
 	$(top_builddir)/src/scconf/libscconf.la \
 	$(top_builddir)/src/common/libcompat.la
 if WIN32
-libopensc_la_LIBADD += -lws2_32
+libotlvopensc_la_LIBADD += -lws2_32
 endif
-libopensc_la_LDFLAGS = $(AM_LDFLAGS) \
+libotlvopensc_la_LDFLAGS = $(AM_LDFLAGS) \
 	-version-info @OPENSC_LT_CURRENT@:@OPENSC_LT_REVISION@:@OPENSC_LT_AGE@ \
 	-export-symbols "$(srcdir)/libopensc.exports" \
 	-no-undefined
@@ -67,5 +67,5 @@ if WIN32
 # def file required for MS users to build library
 mylibdir=$(libdir)
 mylib_DATA=.libs/@WIN_LIBPREFIX@opensc-@OPENSC_LT_OLDEST@.dll.def
-.libs/@WIN_LIBPREFIX@opensc-@OPENSC_LT_OLDEST@.dll.def:	libopensc.la
+.libs/@WIN_LIBPREFIX@opensc-@OPENSC_LT_OLDEST@.dll.def:	libotlvopensc.la
 endif

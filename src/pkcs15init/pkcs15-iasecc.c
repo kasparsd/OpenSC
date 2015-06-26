@@ -309,7 +309,7 @@ iasecc_file_convert_acls(struct sc_context *ctx, struct sc_profile *profile, str
 	int ii;
 
 	for (ii=0; ii<SC_MAX_AC_OPS;ii++)   {
-		struct sc_acl_entry *acl = sc_file_get_acl_entry(file, ii);
+		struct sc_acl_entry *acl = (struct sc_acl_entry *) sc_file_get_acl_entry(file, ii);
 
 		if (acl)   {
 			switch (acl->method)   {				
@@ -525,7 +525,7 @@ iasecc_sdo_allocate_pubkey(struct sc_profile *profile, struct sc_card *card, str
 		*(sdo->docp.size.value + 1) = sz & 0xFF;
 
 		if (card->type == SC_CARD_TYPE_IASECC_OBERTHUR)   {
-			printf("TODO: Disabled for the tests of the Oberthur card\n");
+			// printf("TODO: Disabled for the tests of the Oberthur card\n");
 		}
 		else   {
 			sdo->data.pub_key.cha.value = calloc(1, 2);
@@ -1084,9 +1084,9 @@ iasecc_pkcs15_generate_key(struct sc_profile *profile, sc_pkcs15_card_t *p15card
 		sc_log(ctx, "Unsupported key size %u\n", keybits);
 		return SC_ERROR_INVALID_ARGUMENTS;
 	}
-
+#ifdef _DEBUG
 	printf("TODO: Check if native IAS middleware accepts the meaningfull path value.\n");
-
+#endif
 	rv = sc_profile_get_parent(profile, "private-key", &file);
 	LOG_TEST_RET(ctx, rv, "IasEcc: cannot get private key parent file");
 

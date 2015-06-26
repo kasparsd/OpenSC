@@ -181,7 +181,7 @@ CK_RV card_detect(sc_reader_t *reader)
 {
 	struct sc_pkcs11_card *p11card = NULL;
 	int rc, rv;
-	unsigned int i;
+	unsigned int i, releaseTransaction = 0;
 
 	rv = CKR_OK;
 
@@ -232,14 +232,19 @@ CK_RV card_detect(sc_reader_t *reader)
 		sc_debug(context, SC_LOG_DEBUG_NORMAL, "%s: Connecting ... ", reader->name);
 		rc = sc_connect_card(reader, &p11card->card);
 		if (rc != SC_SUCCESS)
+        {
+            free(p11card);
 			return sc_to_cryptoki_error(rc, NULL);
+        }
+        else
+            releaseTransaction = 1;
 	}
 
 	/* Detect the framework */
 	if (p11card->framework == NULL) {
 		sc_debug(context, SC_LOG_DEBUG_NORMAL, "%s: Detecting Framework\n", reader->name);
 
-		for (i = 0; frameworks[i]; i++) {
+        for (i = 0; frameworks[i]; i++) {
 			if (frameworks[i]->bind == NULL)
 				continue;
 			rv = frameworks[i]->bind(p11card);
@@ -248,16 +253,36 @@ CK_RV card_detect(sc_reader_t *reader)
 		}
 
 		if (frameworks[i] == NULL)
+        {
+            if (releaseTransaction)
+            {
+                // release transaction
+                sc_unlock(p11card->card);
+            }
 			return CKR_TOKEN_NOT_RECOGNIZED;
+        }
 
 		/* Initialize framework */
 		sc_debug(context, SC_LOG_DEBUG_NORMAL, "%s: Detected framework %d. Creating tokens.\n", reader->name, i);
-		rv = frameworks[i]->create_tokens(p11card);
-		if (rv != CKR_OK)
+		rv = frameworks[i]->create_tokens(p11card);       
+		
+        if (rv != CKR_OK)
+        {
+            if (releaseTransaction)
+            {
+                // release transaction
+                sc_unlock(p11card->card);
+            }
 			return rv;
+        }
 
 		p11card->framework = frameworks[i];
 	}
+    if (releaseTransaction)
+    {
+        // release transaction
+        sc_unlock(p11card->card);
+    }
 	sc_debug(context, SC_LOG_DEBUG_NORMAL, "%s: Detection ended\n", reader->name);
 	return CKR_OK;
 }

@@ -203,7 +203,7 @@ static int _validate_pin(struct sc_pkcs15_card *p15card,
 		return SC_ERROR_BUFFER_TOO_SMALL;
 
 	/* if we use pinpad, no more checks are needed */
-	if (p15card->card->reader->capabilities & SC_READER_CAP_PIN_PAD)
+	if ((pinlen == 0) && (p15card->card->reader->capabilities & SC_READER_CAP_PIN_PAD))
 		return SC_SUCCESS;
 		
 	/* If pin is given, make sure it is within limits */
@@ -385,6 +385,7 @@ out:
  * Unblock a PIN.
  */
 int sc_pkcs15_unblock_pin(struct sc_pkcs15_card *p15card,
+             struct sc_pkcs15_object *so_pin_obj,
 			 struct sc_pkcs15_object *pin_obj,
 			 const u8 *puk, size_t puklen,
 			 const u8 *newpin, size_t newpinlen)
@@ -404,20 +405,28 @@ int sc_pkcs15_unblock_pin(struct sc_pkcs15_card *p15card,
 		return r;
 
 	card = p15card->card;
-	/* get pin_info object of the puk (this is a little bit complicated
-	 * as we don't have the id of the puk (at least now))
-	 * note: for compatibility reasons we give no error if no puk object
-	 * is found */
-	/* first step: try to get the pkcs15 object of the puk */
-	r = sc_pkcs15_find_pin_by_auth_id(p15card, &pin_obj->auth_id, &puk_obj);
-	if (r >= 0 && puk_obj) {
-		/* second step:  get the pkcs15 info object of the puk */
-		puk_info = (struct sc_pkcs15_auth_info *)puk_obj->data;
-	}
-	if (!puk_info) {
-		sc_debug(card->ctx, SC_LOG_DEBUG_NORMAL, "Unable to get puk object, using pin object instead!");
-		puk_info = auth_info;
-	}
+
+    if (so_pin_obj)
+    {
+        puk_info = (struct sc_pkcs15_auth_info *)so_pin_obj->data;
+    }
+    else
+    {
+	    /* get pin_info object of the puk (this is a little bit complicated
+	     * as we don't have the id of the puk (at least now))
+	     * note: for compatibility reasons we give no error if no puk object
+	     * is found */
+	    /* first step: try to get the pkcs15 object of the puk */
+	    r = sc_pkcs15_find_pin_by_auth_id(p15card, &pin_obj->auth_id, &puk_obj);
+	    if (r >= 0 && puk_obj) {
+		    /* second step:  get the pkcs15 info object of the puk */
+		    puk_info = (struct sc_pkcs15_auth_info *)puk_obj->data;
+	    }
+	    if (!puk_info) {
+		    sc_debug(card->ctx, SC_LOG_DEBUG_NORMAL, "Unable to get puk object, using pin object instead!");
+		    puk_info = auth_info;
+	    }
+    }
 	
 	/* make sure the puk is in valid range */
 	if ((r = _validate_pin(p15card, puk_info, puklen)) != SC_SUCCESS)
@@ -437,6 +446,7 @@ int sc_pkcs15_unblock_pin(struct sc_pkcs15_card *p15card,
 	data.cmd             = SC_PIN_CMD_UNBLOCK;
 	data.pin_type        = SC_AC_CHV;
 	data.pin_reference   = auth_info->attrs.pin.reference;
+    data.so_pin_reference= puk_info->attrs.pin.reference;
 	data.pin1.data       = puk;
 	data.pin1.len        = puklen;
 	data.pin1.pad_char   = auth_info->attrs.pin.pad_char;

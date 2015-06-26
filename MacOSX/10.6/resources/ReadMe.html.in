@@ -12,15 +12,12 @@
 <body>
 
 
-<h1>OpenSC, version @PACKAGE_VERSION@</h1>
-<p>for Mac OS X 10.6 (Snow Leopard), universal (32-bit and 64-bit)</p>
+<h1>Latvia-eid Middleware version 1.1.0</h1>
+<p>for Mac OS X 10.6 (Snow Leopard) and 10.7 (Lion), universal (32-bit and 64-bit)</p>
 
-<p>OpenSC provides a set of libraries and utilities to work with smart cards. Its main focus is on cards that support cryptographic operations, and facilitate their use in security applications such as authentication, mail encryption and digital signatures.</p>
+<p>Latvia-eid Middleware provides a set of libraries and utilities to work with Latvia eID smart cards. Its main focus is to support cryptographic operations of these cards, and facilitate their use in security applications such as authentication, mail encryption and digital signatures.</p>
 
-<p>OpenSC implements the <a  href="http://www.rsa.com/rsalabs/node.asp?id=2133">PKCS#11 API</a> so applications supporting this API (such as Mozilla Firefox and Thunderbird) can use it. On the card OpenSC implements the <a href="http://www.rsa.com/rsalabs/node.asp?id=2141">PKCS#15</a> standard and aims to be compatible with every software/card that does so, too.</p>
-
-<h2>Documentation:</h2>
-<p>The OpenSC Wiki is available at: <a href="http://www.opensc-project.org/opensc">http://www.opensc-project.org/opensc</a> and should be consulted for further documentation and support.</p>
+<p>Latvia-eid Middleware implements the <a  href="http://www.rsa.com/rsalabs/node.asp?id=2133">PKCS#11 API</a> so applications supporting this API (such as Mozilla Firefox and Thunderbird) can use it.</p>
 
 </body>
 </html>

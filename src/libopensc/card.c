@@ -107,7 +107,7 @@ int sc_connect_card(sc_reader_t *reader, sc_card_t **card_out)
 	sc_card_t *card;
 	sc_context_t *ctx;
 	struct sc_card_driver *driver;
-	int i, r = 0, idx, connected = 0;
+	int i, r = 0, idx, connected = 0, transactionTaken = 0;
 
 	if (card_out == NULL || reader == NULL)
 		return SC_ERROR_INVALID_ARGUMENTS;
@@ -128,6 +128,16 @@ int sc_connect_card(sc_reader_t *reader, sc_card_t **card_out)
 	card->ctx = ctx;
 
 	memcpy(&card->atr, &reader->atr, sizeof(card->atr));
+
+    /* begin PC/SC transaction */
+    r = sc_lock(card);
+    if (r < 0)
+    {
+        sc_debug(ctx, SC_LOG_DEBUG_VERBOSE, "PC/SC transcation failed with error 0x%.8X", r);
+        goto err;
+    }
+    else
+        transactionTaken = 1;
 
 	_sc_parse_atr(reader);
 
@@ -224,6 +234,8 @@ int sc_connect_card(sc_reader_t *reader, sc_card_t **card_out)
 		card->name, card->type, card->flags, card->max_send_size, card->max_recv_size);
 	LOG_FUNC_RETURN(ctx, SC_SUCCESS);
 err:
+    if ((card != NULL) && transactionTaken)
+        sc_unlock(card);
 	if (connected)
 		reader->ops->disconnect(reader);
 	if (card != NULL)
@@ -288,6 +300,7 @@ int sc_reset(sc_card_t *card, int do_cold_reset)
 int sc_lock(sc_card_t *card)
 {
 	int r = 0, r2 = 0;
+    int resetDectected = 0;
 
 	LOG_FUNC_CALLED(card->ctx);
 	
@@ -300,17 +313,50 @@ int sc_lock(sc_card_t *card)
 		if (card->reader->ops->lock != NULL) {
 			r = card->reader->ops->lock(card->reader);
 			if (r == SC_ERROR_CARD_RESET || r == SC_ERROR_READER_REATTACHED) {
-				/* invalidate cache */
-				memset(&card->cache, 0, sizeof(card->cache));
-				card->cache.valid = 0;
+                if (r == SC_ERROR_CARD_RESET)
+                    resetDectected = 1;
+                else
+                {
+			        /* invalidate cache */
+			        memset(&card->cache, 0, sizeof(card->cache));
+			        card->cache.valid = 0;
+                }
 				r = card->reader->ops->lock(card->reader);
+                if (resetDectected && (r != 0))
+                {
+			        /* invalidate cache */
+			        memset(&card->cache, 0, sizeof(card->cache));
+			        card->cache.valid = 0;
+                }
 			}
 		}
 		if (r == 0)
 			card->cache.valid = 1;
 	}
 	if (r == 0)
+    {
 		card->lock_count++;
+        if (resetDectected)
+        {
+            int bContextRestored = 0;
+            // logout on IAS will restore our context in case of reset
+            if (    (card->type > SC_CARD_TYPE_IASECC_BASE) && 
+                    (card->type < SC_CARD_TYPE_IASECC_BASE + 1000)
+                )
+            {
+                if (card->ops->logout && (0 == card->ops->logout(card)))
+                {
+                    bContextRestored = 1;
+                }
+            }
+            if (!bContextRestored)
+            {
+			    /* invalidate cache */
+			    memset(&card->cache, 0, sizeof(card->cache));
+			    card->cache.valid = 0;
+            }
+        }
+    }
 	r2 = sc_mutex_unlock(card->ctx, card->mutex);
 	if (r2 != SC_SUCCESS) {
 		sc_log(card->ctx, "unable to release lock");
@@ -334,7 +380,12 @@ int sc_unlock(sc_card_t *card)
 		return r;
 
 	assert(card->lock_count >= 1);
-	if (--card->lock_count == 0) {
+    if (card->lock_count <= 0)
+    {
+        // should never happen
+        card->lock_count = 0;
+    }
+	else if (--card->lock_count == 0) {
 #ifdef INVALIDATE_CARD_CACHE_IN_UNLOCK
 		/* invalidate cache */
 		memset(&card->cache, 0, sizeof(card->cache));

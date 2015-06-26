@@ -673,6 +673,7 @@ int sc_pkcs15_change_pin(struct sc_pkcs15_card *card,
 			 const u8 *oldpincode, size_t oldpinlen,
 			 const u8 *newpincode, size_t newpinlen);
 int sc_pkcs15_unblock_pin(struct sc_pkcs15_card *card,
+             struct sc_pkcs15_object *so_pin_obj,
 			 struct sc_pkcs15_object *pin_obj,
 			 const u8 *puk, size_t puklen,
 			 const u8 *newpin, size_t newpinlen);

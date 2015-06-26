@@ -311,6 +311,33 @@ done:
 }
 
 CK_RV
+sc_pkcs11_sign(struct sc_pkcs11_session *session, 
+               CK_BYTE_PTR pData, CK_ULONG ulDataLen,
+               CK_BYTE_PTR pSignature, CK_ULONG_PTR pulSignatureLen)
+{
+	sc_pkcs11_operation_t *op;
+	int rv;
+
+	rv = session_get_operation(session, SC_PKCS11_OPERATION_SIGN, &op);
+	if (rv != CKR_OK)
+		return rv;
+
+	/* Bail out for signature mechanisms that don't do hashing */
+	if (op->type->sign == NULL) {
+		rv = CKR_KEY_TYPE_INCONSISTENT;
+		goto done;
+	}
+
+	rv = op->type->sign(op, pData, ulDataLen, pSignature, pulSignatureLen);
+
+done:
+	if (rv != CKR_BUFFER_TOO_SMALL && pSignature != NULL)
+		session_stop_operation(session, SC_PKCS11_OPERATION_SIGN);
+
+	return rv;
+}
+
+CK_RV
 sc_pkcs11_sign_size(struct sc_pkcs11_session *session, CK_ULONG_PTR pLength)
 {
 	sc_pkcs11_operation_t *op;
@@ -405,6 +432,7 @@ sc_pkcs11_signature_final(sc_pkcs11_operation_t *operation,
 	int rv;
 
 	data = (struct signature_data *) operation->priv_data;
+    key = data->key;
 
 	if (data->md) {
 		sc_pkcs11_operation_t	*md = data->md;
@@ -416,12 +444,124 @@ sc_pkcs11_signature_final(sc_pkcs11_operation_t *operation,
 		if (rv != CKR_OK)
 			return rv;
 		data->buffer_len = len;
+
+        if (    (operation->mechanism.mechanism == CKM_MD2_RSA_PKCS)
+            ||  (operation->mechanism.mechanism == CKM_MD5_RSA_PKCS)
+            ||  (operation->mechanism.mechanism == CKM_SHA1_RSA_PKCS)
+            ||  (operation->mechanism.mechanism == CKM_SHA256_RSA_PKCS)
+            ||  (operation->mechanism.mechanism == CKM_SHA384_RSA_PKCS)
+            ||  (operation->mechanism.mechanism == CKM_SHA512_RSA_PKCS)
+            )
+        {
+            // we add the OID and call CKM_RSA_PKCS
+            static CK_BYTE OID_MD2[] =
+            {
+	            0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86,
+	            0x48, 0x86, 0xf7, 0x0d, 0x02, 0x02, 0x05, 0x00,
+	            0x04, 0x10
+            };
+            static CK_BYTE OID_MD5[] =
+            {
+	            0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86,
+	            0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00,
+	            0x04, 0x10
+            };
+            static CK_BYTE OID_SHA1[] =
+            {
+	            0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e,
+	            0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14
+            };
+            static CK_BYTE OID_SHA256[] = {
+	            0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	            0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+	            0x00, 0x04, 0x20
+            };
+            static CK_BYTE OID_SHA384[] = {
+	            0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	            0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
+	            0x00, 0x04, 0x30
+            };
+            static CK_BYTE OID_SHA512[] = {
+	            0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	            0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
+	            0x00, 0x04, 0x40
+            };
+
+            CK_BYTE pbDigest[64];
+            CK_ULONG ulDigestLen = len;
+            CK_BYTE_PTR pbOID = NULL;
+            CK_ULONG ulOidLen = 0;
+            CK_MECHANISM pkcsMech = { CKM_RSA_PKCS, NULL, 0};
+            
+            memcpy(pbDigest, data->buffer, len);
+
+            switch(operation->mechanism.mechanism)
+            {
+            case CKM_MD2_RSA_PKCS:
+                pbOID = OID_MD2;
+                ulOidLen = sizeof(OID_MD2);
+                break;
+            case CKM_MD5_RSA_PKCS:
+                pbOID = OID_MD5;
+                ulOidLen = sizeof(OID_MD5);
+                break;
+            case CKM_SHA1_RSA_PKCS:
+                pbOID = OID_SHA1;
+                ulOidLen = sizeof(OID_SHA1);
+                break;
+            case CKM_SHA256_RSA_PKCS:
+                pbOID = OID_SHA256;
+                ulOidLen = sizeof(OID_SHA256);
+                break;
+            case CKM_SHA384_RSA_PKCS:
+                pbOID = OID_SHA384;
+                ulOidLen = sizeof(OID_SHA384);
+                break;
+            case CKM_SHA512_RSA_PKCS:
+                pbOID = OID_SHA512;
+                ulOidLen = sizeof(OID_SHA512);
+                break;
+            default:
+                break;
+            }
+
+            memcpy(data->buffer, pbOID, ulOidLen);
+            memcpy(data->buffer + ulOidLen, pbDigest, ulDigestLen);
+            data->buffer_len = ulOidLen + ulDigestLen;
+
+            // call CKM_RSA_PKCS mechanism
+
+            return key->ops->sign(operation->session,
+				    key, &pkcsMech,
+				    data->buffer, data->buffer_len,
+				    pSignature, pulSignatureLen);
+        }
+        else
+            return CKR_FUNCTION_NOT_SUPPORTED; // we don't support the other mechanisms
 	}
 
-	key = data->key;
+	
 	return key->ops->sign(operation->session,
 				key, &operation->mechanism,
 				data->buffer, data->buffer_len,
+				pSignature, pulSignatureLen);
+}
+
+static CK_RV
+sc_pkcs11_signature(sc_pkcs11_operation_t *operation,
+            CK_BYTE_PTR pPart, CK_ULONG ulPartLen,
+			CK_BYTE_PTR pSignature, CK_ULONG_PTR pulSignatureLen)
+{
+	struct signature_data *data;
+	struct sc_pkcs11_object *key;
+
+	data = (struct signature_data *) operation->priv_data;
+
+    // don't Hash, if any, because it will be done by the card's implementation
+	key = data->key;
+	return key->ops->sign(operation->session,
+				key, &operation->mechanism,
+				pPart, ulPartLen,
 				pSignature, pulSignatureLen);
 }
 
@@ -803,6 +943,7 @@ sc_pkcs11_new_fw_mechanism(CK_MECHANISM_TYPE mech,
 		mt->sign_init = sc_pkcs11_signature_init;
 		mt->sign_update = sc_pkcs11_signature_update;
 		mt->sign_final = sc_pkcs11_signature_final;
+        mt->sign = sc_pkcs11_signature;
 		mt->sign_size = sc_pkcs11_signature_size;
 #ifdef ENABLE_OPENSSL
 		mt->verif_init = sc_pkcs11_verify_init;

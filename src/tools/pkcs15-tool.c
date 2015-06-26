@@ -1191,8 +1191,8 @@ static int dump(void)
 
 static int unblock_pin(void)
 {
-	struct sc_pkcs15_auth_info *pinfo = NULL;
-	sc_pkcs15_object_t *pin_obj;
+	struct sc_pkcs15_auth_info *pinfo = NULL, *pukinfo = NULL;
+	sc_pkcs15_object_t *pin_obj, *puk_obj;
 	u8 *pin, *puk;
 	int r, pinpad_present = 0;
 	
@@ -1204,6 +1204,12 @@ static int unblock_pin(void)
 
 	if (pinfo->auth_type != SC_PKCS15_PIN_AUTH_TYPE_PIN) 
 		return 1;
+		
+    r = sc_pkcs15_find_so_pin(p15card, &puk_obj);
+    if (r != 0)
+    {
+        return 2;
+    }
 
 	puk = opt_puk;
 	if (puk == NULL) {
@@ -1240,7 +1246,7 @@ static int unblock_pin(void)
 		free(pin2);
 	}
 
-	r = sc_pkcs15_unblock_pin(p15card, pin_obj, 
+	r = sc_pkcs15_unblock_pin(p15card, puk_obj, pin_obj, 
 			puk, puk ? strlen((char *) puk) : 0,
 			pin, pin ? strlen((char *) pin) : 0);
 	if (r == SC_ERROR_PIN_CODE_INCORRECT) {
