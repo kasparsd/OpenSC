@@ -73,8 +73,10 @@ static struct sc_atr_table iasecc_known_atrs[] = {
 	{ "3B:7F:96:00:00:00:31:B8:64:40:70:14:10:73:94:01:80:82:90:00",
 	  "FF:FF:FF:FF:FF:FF:FF:FE:FF:FF:00:00:FF:FF:FF:FF:FF:FF:FF:FF",
 		"IAS/ECC Gemalto", SC_CARD_TYPE_IASECC_GEMALTO,  0, NULL },
-        { "3B:DD:18:00:81:31:FE:45:80:F9:A0:00:00:00:77:01:08:00:07:90:00:FE", NULL,
+	{ "3B:DD:18:00:81:31:FE:45:80:F9:A0:00:00:00:77:01:08:00:07:90:00:FE", NULL,
 		"IAS/ECC v1.0.1 Oberthur", SC_CARD_TYPE_IASECC_OBERTHUR,  0, NULL },
+	{ "3B:DD:18:00:81:31:FE:45:90:4C:41:54:56:49:41:2D:65:49:44:90:00:8C", NULL,
+		"Latvia ID", SC_CARD_TYPE_IASECC_LATVIAEID, 0, NULL },
 	{ "3B:7D:13:00:00:4D:44:57:2D:49:41:53:2D:43:41:52:44:32", NULL,
 		"IAS/ECC v1.0.1 Sagem MDW-IAS-CARD2", SC_CARD_TYPE_IASECC_SAGEM,  0, NULL },
 	{ "3B:7F:18:00:00:00:31:B8:64:50:23:EC:C1:73:94:01:80:82:90:00", NULL,
@@ -512,6 +514,51 @@ iasecc_init_oberthur(struct sc_card *card)
 
 
 static int
+iasecc_init_latviaeid(struct sc_card *card)
+{
+	struct sc_context *ctx = card->ctx;
+	unsigned char *hist = card->reader->atr_info.hist_bytes;
+	unsigned char resp[0x100];
+	size_t resp_len;
+	unsigned int flags;
+	int rv = 0;
+
+	LOG_FUNC_CALLED(ctx);
+
+	flags = IASECC_CARD_DEFAULT_FLAGS;
+
+	_sc_card_add_rsa_alg(card, 1024, flags, 0x10001);
+	_sc_card_add_rsa_alg(card, 2048, flags, 0x10001);
+
+	card->caps = SC_CARD_CAP_RNG;
+	card->caps |= SC_CARD_CAP_APDU_EXT;
+	card->caps |= SC_CARD_CAP_USE_FCI_AC;
+
+	// Select the GlobalPlatform_ISD_Default_RID application
+	resp_len = sizeof(resp);
+	rv = iasecc_select_aid(card, &GlobalPlatform_ISD_Default_RID, resp, &resp_len);
+
+	// Allocate space for storing the OberthurIASECC_AID
+	if (!card->ef_atr)
+		card->ef_atr = calloc(1, sizeof(struct sc_ef_atr));
+	if (!card->ef_atr)
+		LOG_FUNC_RETURN(ctx, SC_ERROR_OUT_OF_MEMORY);
+
+	// Store the OberthurIASECC_AID
+	memcpy(card->ef_atr->aid.value, OberthurIASECC_AID.value, OberthurIASECC_AID.len);
+	card->ef_atr->aid.len = OberthurIASECC_AID.len;
+
+	rv = iasecc_select_mf(card, NULL);
+	LOG_TEST_RET(ctx, rv, "Latvia eID MF selection error");
+
+	rv = iasecc_parse_ef_atr(card);
+	LOG_TEST_RET(ctx, rv, "Latvia eID EF.ATR read or parse error");
+
+	LOG_FUNC_RETURN(ctx, rv);
+}
+
+
+static int
 iasecc_init_sagem(struct sc_card *card)
 {
 	struct sc_context *ctx = card->ctx;
@@ -639,6 +686,8 @@ iasecc_init(struct sc_card *card)
 		rv = iasecc_init_gemalto(card);
 	else if (card->type == SC_CARD_TYPE_IASECC_OBERTHUR)
 		rv = iasecc_init_oberthur(card);
+	else if (card->type == SC_CARD_TYPE_IASECC_LATVIAEID)
+		rv = iasecc_init_latviaeid(card);
 	else if (card->type == SC_CARD_TYPE_IASECC_SAGEM)
 		rv = iasecc_init_sagem(card);
 	else if (card->type == SC_CARD_TYPE_IASECC_AMOS)
@@ -863,7 +912,7 @@ iasecc_select_file(struct sc_card *card, const struct sc_path *path,
 
 	sc_print_cache(card);
 	if (lpath.len >= 2 && lpath.value[0] == 0x3F && lpath.value[1] == 0x00)   {
-		sc_log(ctx, "EF.ATR(aid:'%s')", card->ef_atr ? sc_dump_hex(card->ef_atr->aid.value, card->ef_atr->aid.len) : "");
+		sc_log(ctx, "EF.ATR(aid:'%s')", card->ef_atr ? sc_dump_hex(card->ef_atr->aid.value, card->ef_atr->aid.len) : "ATR empty!");
 
 		rv = iasecc_select_mf(card, file_out);
 		LOG_TEST_RET(ctx, rv, "MF selection error");
@@ -934,6 +983,7 @@ iasecc_select_file(struct sc_card *card, const struct sc_path *path,
 
 		if (card->type != SC_CARD_TYPE_IASECC_GEMALTO
 				&& card->type != SC_CARD_TYPE_IASECC_OBERTHUR
+				&& card->type != SC_CARD_TYPE_IASECC_LATVIAEID
 				&& card->type != SC_CARD_TYPE_IASECC_SAGEM
 				&& card->type != SC_CARD_TYPE_IASECC_AMOS
 				&& card->type != SC_CARD_TYPE_IASECC_MI)
@@ -941,7 +991,7 @@ iasecc_select_file(struct sc_card *card, const struct sc_path *path,
 
 		if (lpath.type == SC_PATH_TYPE_FILE_ID)   {
 			apdu.p1 = 0x02;
-			if (card->type == SC_CARD_TYPE_IASECC_OBERTHUR)   {
+			if (card->type == SC_CARD_TYPE_IASECC_OBERTHUR || card->type == SC_CARD_TYPE_IASECC_LATVIAEID)   {
 				apdu.p1 = 0x01;
 				apdu.p2 = 0x04;
 			}
@@ -952,7 +1002,7 @@ iasecc_select_file(struct sc_card *card, const struct sc_path *path,
 		}
 		else if (lpath.type == SC_PATH_TYPE_FROM_CURRENT)  {
 			apdu.p1 = 0x09;
-			if (card->type == SC_CARD_TYPE_IASECC_OBERTHUR)
+			if (card->type == SC_CARD_TYPE_IASECC_OBERTHUR || card->type == SC_CARD_TYPE_IASECC_LATVIAEID)
 				apdu.p2 = 0x04;
 			if (card->type == SC_CARD_TYPE_IASECC_AMOS)
 				apdu.p2 = 0x04;
@@ -1788,7 +1838,7 @@ iasecc_set_security_env(struct sc_card *card,
 	LOG_FUNC_RETURN(ctx, 0);
 }
 
-
+// @todo Add support for pins with SC_PIN_CMD_NEED_PADDING
 static int
 iasecc_chv_verify_pinpad(struct sc_card *card, struct sc_pin_cmd_data *pin_cmd, int *tries_left)
 {
@@ -2017,6 +2067,7 @@ iasecc_pin_verify(struct sc_card *card, unsigned type, unsigned reference,
 }
 
 
+// @todo Add support for pins with SC_PIN_CMD_NEED_PADDING
 static int
 iasecc_chv_change_pinpad(struct sc_card *card, unsigned reference, int *tries_left)
 {
@@ -2231,6 +2282,16 @@ iasecc_pin_get_policy (struct sc_card *card, struct sc_pin_cmd_data *data)
 	data->pin1.encoding = SC_PIN_ENCODING_ASCII;
 	data->pin1.offset = 5;
 
+	// Latvia ID pins are padded by 0xFF
+	if (card->type == SC_CARD_TYPE_IASECC_LATVIAEID)    {
+		data->pin1.pad_char = 0xFF;
+		data->pin1.pad_length = data->pin1.max_length;
+		data->pin2.pad_char = 0xFF;
+		data->pin2.pad_length = data->pin2.max_length;
+
+		data->flags |= SC_PIN_CMD_NEED_PADDING;
+	}
+
 	sc_log(ctx, "PIN policy: size max/min %i/%i, tries max/left %i/%i",
 				data->pin1.max_length, data->pin1.min_length,
 				data->pin1.max_tries, data->pin1.tries_left);
@@ -2426,6 +2487,7 @@ iasecc_pin_reset(struct sc_card *card, struct sc_pin_cmd_data *data, int *tries_
 
 	iasecc_sdo_free_fields(card, &sdo);
 
+	// @todo add suppport for pins with SC_PIN_CMD_NEED_PADDING
 	if (data->pin2.len)   {
 		sc_log(ctx, "Reset PIN %X and set new value", reference);
 		sc_format_apdu(card, &apdu, SC_APDU_CASE_3_SHORT, 0x2C, 0x02, reference);
