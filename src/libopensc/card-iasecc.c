@@ -626,7 +626,7 @@ iasecc_mi_match(struct sc_card *card)
 
 	LOG_FUNC_CALLED(ctx);
 
-    if (!card->ef_atr)
+	if (!card->ef_atr)
 		card->ef_atr = calloc(1, sizeof(struct sc_ef_atr));
 	if (!card->ef_atr)
 		LOG_FUNC_RETURN(ctx, SC_ERROR_OUT_OF_MEMORY);
@@ -657,12 +657,12 @@ iasecc_init_mi(struct sc_card *card)
 	card->caps |= SC_CARD_CAP_APDU_EXT;
 	card->caps |= SC_CARD_CAP_USE_FCI_AC;
 
-    resp_len = sizeof(resp);
-    rv = iasecc_select_aid(card, &MIIASECC_AID, resp, &resp_len);
-    LOG_TEST_RET(ctx, rv, "Could not select MI's AID");
+	resp_len = sizeof(resp);
+	rv = iasecc_select_aid(card, &MIIASECC_AID, resp, &resp_len);
+	LOG_TEST_RET(ctx, rv, "Could not select MI's AID");
 
 	rv = iasecc_mi_match(card);
-    LOG_TEST_RET(ctx, rv, "Could not match MI's AID");
+	LOG_TEST_RET(ctx, rv, "Could not match MI's AID");
 
 	LOG_FUNC_RETURN(ctx, SC_SUCCESS);
 }
@@ -1379,11 +1379,11 @@ iasecc_create_file(struct sc_card *card, struct sc_file *file)
 		sc_log(ctx, "iasecc_create_file() 'CREATE' method/reference %X/%X", entry->method, entry->key_ref);
 		sc_log(ctx, "iasecc_create_file() create data: '%s'", sc_dump_hex(sbuf, sbuf_len + 2));
 		if (entry->method == SC_AC_SCB && (entry->key_ref & IASECC_SCB_METHOD_SM))   {
-                        rv = iasecc_sm_create_file(card, entry->key_ref & IASECC_SCB_METHOD_MASK_REF, sbuf, sbuf_len + 2);
-                        LOG_TEST_RET(ctx, rv, "iasecc_create_file() SM create file error");
+						rv = iasecc_sm_create_file(card, entry->key_ref & IASECC_SCB_METHOD_MASK_REF, sbuf, sbuf_len + 2);
+						LOG_TEST_RET(ctx, rv, "iasecc_create_file() SM create file error");
 
-                        rv = iasecc_select_file(card, &file->path, NULL);
-                        LOG_FUNC_RETURN(ctx, rv);
+						rv = iasecc_select_file(card, &file->path, NULL);
+						LOG_FUNC_RETURN(ctx, rv);
 
 		}
 	}
@@ -1510,27 +1510,27 @@ static unsigned
 iasecc_get_algorithm(struct sc_context *ctx, const struct sc_security_env *env,
 		unsigned operation, unsigned mechanism)
 {
-    const struct sc_supported_algo_info *info = NULL;
-    int ii;
+	const struct sc_supported_algo_info *info = NULL;
+	int ii;
 
-    if (!env)
-        return 0;
+	if (!env)
+		return 0;
 
-    for (ii=0;ii<SC_MAX_SUPPORTED_ALGORITHMS && env->supported_algos[ii].reference; ii++)
-        if ((env->supported_algos[ii].operations & operation)
+	for (ii=0;ii<SC_MAX_SUPPORTED_ALGORITHMS && env->supported_algos[ii].reference; ii++)
+		if ((env->supported_algos[ii].operations & operation)
 			&& (env->supported_algos[ii].mechanism == mechanism))
-            break;
+			break;
 
-    if (ii < SC_MAX_SUPPORTED_ALGORITHMS && env->supported_algos[ii].reference)   {
-        info = &env->supported_algos[ii];
-        sc_log(ctx, "found IAS/ECC algorithm %X:%X:%X:%X",
+	if (ii < SC_MAX_SUPPORTED_ALGORITHMS && env->supported_algos[ii].reference)   {
+		info = &env->supported_algos[ii];
+		sc_log(ctx, "found IAS/ECC algorithm %X:%X:%X:%X",
 			info->reference, info->mechanism, info->operations, info->algo_ref);
-    }
-    else   {
-        sc_log(ctx, "cannot find IAS/ECC algorithm (operation:%X,mechanism:%X)", operation, mechanism);
-    }
+	}
+	else   {
+		sc_log(ctx, "cannot find IAS/ECC algorithm (operation:%X,mechanism:%X)", operation, mechanism);
+	}
 
-    return info ? info->algo_ref : 0;
+	return info ? info->algo_ref : 0;
 }
 
 
@@ -1635,7 +1635,7 @@ iasecc_se_get_info(struct sc_card *card, struct iasecc_se_info *se)
 	LOG_FUNC_CALLED(ctx);
 
 	if (se->reference > IASECC_SE_REF_MAX)
-                LOG_FUNC_RETURN(ctx, SC_ERROR_INVALID_ARGUMENTS);
+				LOG_FUNC_RETURN(ctx, SC_ERROR_INVALID_ARGUMENTS);
 
 	rv = iasecc_se_get_info_from_cache(card, se);
 	if (rv == SC_ERROR_OBJECT_NOT_FOUND)   {
@@ -1979,7 +1979,7 @@ iasecc_pin_is_verified(struct sc_card *card, struct sc_pin_cmd_data *pin_cmd_dat
 {
 	struct sc_context *ctx = card->ctx;
 	struct sc_pin_cmd_data pin_cmd;
-        struct sc_acl_entry acl = pin_cmd_data->pin1.acls[IASECC_ACLS_CHV_VERIFY];
+		struct sc_acl_entry acl = pin_cmd_data->pin1.acls[IASECC_ACLS_CHV_VERIFY];
 	int rv = SC_ERROR_SECURITY_STATUS_NOT_SATISFIED;
 
 	LOG_FUNC_CALLED(ctx);
@@ -2971,7 +2971,7 @@ iasecc_sdo_generate(struct sc_card *card, struct iasecc_sdo *sdo)
 
 		if (scb & IASECC_SCB_METHOD_SM)   {
 			rv = iasecc_sm_rsa_generate(card, scb & IASECC_SCB_METHOD_MASK_REF, sdo);
-                        LOG_FUNC_RETURN(ctx, rv);
+						LOG_FUNC_RETURN(ctx, rv);
 		}
 	} while(0);
 
